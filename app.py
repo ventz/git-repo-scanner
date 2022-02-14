@@ -4,6 +4,7 @@ from nightfall import Confidence, DetectionRule, Detector, RedactionConfig, Mask
 from datetime import datetime, timedelta
 import urllib.request, urllib.parse, json
 import csv
+import requests
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ nightfall = Nightfall(
 )
 
 # create CSV where sensitive findings will be written
-headers = ["upload_id", "#", "datetime", "filepath", "before_context", "finding", "after_context", "detector", "confidence", "loc", "detection_rules"]
+headers = ["upload_id", "#", "datetime", "org", "repo", "filepath", "before_context", "finding", "after_context", "detector", "confidence", "line", "detection_rules", "commit_hash", "commit_date", "author_email", "permalink"]
 with open(f"results.csv", 'a') as csvfile:
 	writer = csv.writer(csvfile)
 	writer.writerow(headers)
@@ -46,6 +47,35 @@ def ingest():
 		else:
 			return "Invalid webhook", 500
 
+# get hostname for GitHub API calls depending on cloud vs enterprise
+def get_hostname():
+	if os.getenv('GITHUB_HOSTNAME') and os.getenv('GITHUB_HOSTNAME') != "github.com":
+		return f"{os.getenv('GITHUB_HOSTNAME')}/api/v3"
+	return "api.github.com"
+
+# get permalink to the line of the finding in the specific GitHub commit
+def get_permalink(url, finding):
+	path = finding['path'].split("/")
+	if len(path) > 1:
+		path.pop(0)
+	path = "/".join(path)
+	path = path.split(":")
+	path = path[0]
+	# print(path)
+	return path, f"{url}/blob/{finding['location']['commitHash']}/{path}#L{finding['location']['lineRange']['start']}"
+
+# get details of the commit from GitHub
+def get_commit(org, repo, commit_hash):
+	headers = {
+	    'Authorization': f"token {os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')}",
+	    'Accept': 'application/vnd.github.v3+json'
+	}
+
+	response = requests.get(f"https://{get_hostname()}/repos/{org}/{repo}/commits/{commit_hash}", headers=headers)
+	commit = json.loads(response.content)
+	return commit['commit']['author']
+
+# output findings to CSV
 def output_results(data):
 	findings_url = data['findingsURL']
 	# open findings URL provided by Nightfall to access findings
@@ -53,9 +83,15 @@ def output_results(data):
 		findings = json.loads(url.read().decode())
 		findings = findings['findings']
 
-	filepath = ""
+	filepath, url, org, repo = "", "", "", ""
+
 	if 'requestMetadata' in data:
-		filepath = data['requestMetadata']
+		metadata = data['requestMetadata']
+		metadata = json.loads(metadata)
+		filepath = metadata['filepath']
+		url = metadata['url']
+		org = metadata['org_name']
+		repo = metadata['repo_name']
 
 	print(f"Sensitive data found in {filepath} | Outputting {len(findings)} finding(s) to CSV | UploadID {data['uploadID']}")
 	table = []
@@ -67,19 +103,28 @@ def output_results(data):
 		after_context = ""
 		if 'afterContext' in finding:
 			after_context = repr(finding['afterContext'])
+		
+		filepath, permalink = get_permalink(url, finding)
+		commit_author = get_commit(org, repo, finding['location']['commitHash'])
 
 		row = [
 			data['uploadID'],
 			i+1,
 			datetime.now(),
+			org,
+			repo,
 			filepath,
 			before_context, 
 			repr(finding['finding']),
 			after_context,
 			finding['detector']['name'],
 			finding['confidence'],
-			finding['location']['byteRange'],
-			finding['matchedDetectionRules']
+			finding['location']['lineRange']['start'],
+			finding['matchedDetectionRuleUUIDs'],
+			finding['location']['commitHash'],
+			commit_author['date'],
+			commit_author['email'],
+			permalink
 		]
 		table.append(row)
 		with open(f"results.csv", 'a') as csvfile:

@@ -1,4 +1,4 @@
 nightfall
 Flask
 Gunicorn
-watchdog
+gitpython
