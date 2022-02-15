@@ -82,7 +82,7 @@ python scanner.py
 * `author_email` - Email of author of commit
 * `permalink` - Link to the line of the commit
 
-#### Troubleshooting
+## Troubleshooting
 
 ###### Error:
 ```
@@ -92,3 +92,15 @@ stderr: 'fatal: destination path 'repos-temp/xyz' already exists and is not an e
 ###### Solution:
 
 The service works by downloading a temporary local copy of your git repos in a directory called `repos-temp` in the same directory in which the script is executed. These temporary files are cleaned up at the end of successful execution. If the scan errors midway through execution, these temporary files may not be removed completely. In which case, you can use the `delete_all_repos()` function in `app.py` or simply delete the `repos-temp` directory and retry.
+
+###### Error:
+
+```API rate limit exceeded for xxx.xxx.xxx.xxx.```
+
+###### Solution:
+
+This service does not currently take GitHub rate limits into account.
+
+## License
+
+This code is licensed under the terms of the MIT License. See [here](LICENSE.md) for more information.
