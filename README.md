@@ -66,7 +66,6 @@ python scanner.py
 7. Monitor your webhook server output. Once all file scan events have been received and the scan is complete, view your results in `results.csv`. Each row in the output CSV will correspond to a sensitive finding. Each row will have the following fields, which you can customize in your webhook server in `app.py`: 
 
 * `upload_id` - Upload ID provided by Nightfall
-* `#` - An incrementing index
 * `datetime` - Timestamp of when the finding was generated
 * `org` - GitHub organization/owner name
 * `repo` - GitHub repo name
@@ -76,7 +75,8 @@ python scanner.py
 * `after_context` - Characters after the sensitive finding (for context)
 * `detector` - Detector that was found, see Detector Glossary
 * `confidence` - Confidence level of the detection
-* `line` - Line number of the finding in file
+* `line_start` - Line number of where the finding starts in the file
+* `line_end` - Line number of where the finding ends in the file
 * `detection_rules` - Corresponding detection rules that flagged the sensitive finding
 * `commit_date` - Timestamp of commit
 * `author_email` - Email of author of commit
@@ -84,7 +84,7 @@ python scanner.py
 
 ## Troubleshooting
 
-###### Error:
+###### Scenario:
 ```
 stderr: 'fatal: destination path 'repos-temp/xyz' already exists and is not an empty directory.
 ```
@@ -93,13 +93,21 @@ stderr: 'fatal: destination path 'repos-temp/xyz' already exists and is not an e
 
 The service works by downloading a temporary local copy of your git repos in a directory called `repos-temp` in the same directory in which the script is executed. These temporary files are cleaned up at the end of successful execution. If the scan errors midway through execution, these temporary files may not be removed completely. In which case, you can use the `delete_all_repos()` function in `app.py` or simply delete the `repos-temp` directory and retry.
 
-###### Error:
+###### Scenario:
 
 ```API rate limit exceeded for xxx.xxx.xxx.xxx.```
 
 ###### Solution:
 
 This service does not currently take GitHub rate limits into account.
+
+###### Scenario:
+
+Results file has old findings from earlier runs.
+
+###### Solution:
+
+This service appends to `results.csv`. If you no longer want the contents of `results.csv`, delete the file and restart your server. This will recreate the file from scratch.
 
 ## License
 

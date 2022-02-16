@@ -12,12 +12,14 @@ nightfall = Nightfall(
 	key=os.getenv('NIGHTFALL_API_KEY'),
 	signing_secret=os.getenv('NIGHTFALL_SIGNING_SECRET')
 )
+outfile = "results.csv"
 
 # create CSV where sensitive findings will be written
-headers = ["upload_id", "#", "datetime", "org", "repo", "filepath", "before_context", "finding", "after_context", "detector", "confidence", "line", "detection_rules", "commit_hash", "commit_date", "author_email", "permalink"]
-with open(f"results.csv", 'a') as csvfile:
-	writer = csv.writer(csvfile)
-	writer.writerow(headers)
+headers = ["upload_id", "datetime", "org", "repo", "filepath", "before_context", "finding", "after_context", "detector", "confidence", "line_start", "line_end", "detection_rules", "commit_hash", "commit_date", "author_email", "permalink"]
+with open(outfile, 'a') as csvfile:
+	if os.stat(outfile).st_size == 0:
+		writer = csv.writer(csvfile)
+		writer.writerow(headers)
 
 # respond to POST requests at /ingest
 # Nightfall will send requests to this webhook endpoint with file scan results
@@ -61,7 +63,6 @@ def get_permalink(url, finding):
 	path = "/".join(path)
 	path = path.split(":")
 	path = path[0]
-	# print(path)
 	return path, f"{url}/blob/{finding['location']['commitHash']}/{path}#L{finding['location']['lineRange']['start']}"
 
 # get details of the commit from GitHub
@@ -109,7 +110,6 @@ def output_results(data):
 
 		row = [
 			data['uploadID'],
-			i+1,
 			datetime.now(),
 			org,
 			repo,
@@ -120,6 +120,7 @@ def output_results(data):
 			finding['detector']['name'],
 			finding['confidence'],
 			finding['location']['lineRange']['start'],
+			finding['location']['lineRange']['end'],
 			finding['matchedDetectionRuleUUIDs'],
 			finding['location']['commitHash'],
 			commit_author['date'],
