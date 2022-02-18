@@ -1,11 +1,11 @@
 # Git Sensitive Data Scanner
 
-#### Scan all your git repositories in GitHub or GitLab for sensitive data (like PII and API keys) with Nightfall's data loss prevention (DLP) APIs. Discover what lives at-rest in your repos.
+#### Scan the full commit history of all your git repositories in GitHub or GitLab for sensitive data (like PII and API keys) with Nightfall's data loss prevention (DLP) APIs.
 
 This service uses Nightfall's [data loss prevention (DLP) APIs](https://nightfall.ai/developer-platform) to scan all git repos across your GitHub or GitLab account.
 
 ###### How it works
-The service will (1) retrieve all git repos that your account is a member of, (2) send each git repo to Nightfall to be scanned, (2) run a local webhook server that retrieves sensitive results back from Nightfall, and (3) write the sensitive findings to a CSV file. This output provides a comprehensive report/audit of the sensitive data at-rest in your GitHub or GitLab account. 
+The service will (1) retrieve all git repos that your account is a member of, (2) send each git repo to Nightfall to be scanned, (3) scan the full commit history of each repo with Nightfall, (4) run a local webhook server that retrieves sensitive results back from Nightfall, and (5) write the sensitive findings to a CSV file. This output provides a comprehensive report/audit of the sensitive data at-rest in your GitHub or GitLab account. 
 
 If you'd like a more detailed tutorial or walk-through of how this service works, we recommend reviewing our [file scanner tutorial](https://github.com/nightfallai/file-scanner-tutorial), as the components are largely the same.
 
