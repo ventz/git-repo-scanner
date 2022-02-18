@@ -49,13 +49,17 @@ def ingest():
 		else:
 			return "Invalid webhook", 500
 
-# get hostname for GitHub API calls depending on cloud vs enterprise
+# get hostname for API calls to GitHub cloud, GitHub enterprise, or GitLab
 def get_hostname():
-	if os.getenv('GITHUB_HOSTNAME') and os.getenv('GITHUB_HOSTNAME') != "github.com":
-		return f"{os.getenv('GITHUB_HOSTNAME')}/api/v3"
-	return "api.github.com"
+	if os.getenv('GIT_SERVICE') == 'gitlab': # gitlab
+		return "gitlab.com/api/v4"
 
-# get permalink to the line of the finding in the specific GitHub commit
+	if os.getenv('GIT_HOSTNAME') and os.getenv('GIT_HOSTNAME') != "github.com": # github enterprise
+		return f"{os.getenv('GIT_HOSTNAME')}/api/v3"
+	
+	return "api.github.com" # github cloud
+
+# get permalink to the line of the finding in the specific commit
 def get_permalink(url, finding):
 	path = finding['path'].split("/")
 	if len(path) > 1:
@@ -65,16 +69,25 @@ def get_permalink(url, finding):
 	path = path[0]
 	return path, f"{url}/blob/{finding['location']['commitHash']}/{path}#L{finding['location']['lineRange']['start']}"
 
-# get details of the commit from GitHub
+# get details of the commit from git service
 def get_commit(org, repo, commit_hash):
-	headers = {
-	    'Authorization': f"token {os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')}",
-	    'Accept': 'application/vnd.github.v3+json'
-	}
-
-	response = requests.get(f"https://{get_hostname()}/repos/{org}/{repo}/commits/{commit_hash}", headers=headers)
-	commit = json.loads(response.content)
-	return commit['commit']['author']
+	if os.getenv('GIT_SERVICE') == 'gitlab': # gitlab
+		headers = {
+		    'Authorization': f"Bearer {os.getenv('GIT_PERSONAL_ACCESS_TOKEN')}"
+		}
+		url = f"https://{get_hostname()}/projects/{org}/repository/commits/{commit_hash}"
+		response = requests.get(url, headers=headers)
+		commit = json.loads(response.content)
+		return { "email": commit['committer_email'], "date": commit['created_at'] }
+	else: # github
+		headers = {
+		    'Authorization': f"token {os.getenv('GIT_PERSONAL_ACCESS_TOKEN')}",
+		    'Accept': 'application/vnd.github.v3+json'
+		}
+		url = f"https://{get_hostname()}/repos/{org}/{repo}/commits/{commit_hash}"
+		response = requests.get(url, headers=headers)
+		commit = json.loads(response.content)
+		return commit['commit']['author']
 
 # output findings to CSV
 def output_results(data):
@@ -85,7 +98,6 @@ def output_results(data):
 		findings = findings['findings']
 
 	filepath, url, org, repo = "", "", "", ""
-
 	if 'requestMetadata' in data:
 		metadata = data['requestMetadata']
 		metadata = json.loads(metadata)
@@ -96,6 +108,7 @@ def output_results(data):
 
 	print(f"Sensitive data found in {filepath} | Outputting {len(findings)} finding(s) to CSV | UploadID {data['uploadID']}")
 	table = []
+
 	# loop through findings JSON, get relevant finding metadata, write each finding as a row into output CSV
 	for i, finding in enumerate(findings):
 		before_context = ""
@@ -128,6 +141,7 @@ def output_results(data):
 			permalink
 		]
 		table.append(row)
+
 		with open(f"results.csv", 'a') as csvfile:
 			writer = csv.writer(csvfile)
 			writer.writerow(row)

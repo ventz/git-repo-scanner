@@ -6,16 +6,20 @@ import json
 from git import Repo
 import shutil
 
-# get hostname for GitHub API calls depending on cloud vs enterprise
+# get hostname for API calls to GitHub cloud, GitHub enterprise, or GitLab
 def get_hostname():
-	if os.getenv('GITHUB_HOSTNAME') and os.getenv('GITHUB_HOSTNAME') != "github.com":
-		return f"{os.getenv('GITHUB_HOSTNAME')}/api/v3"
-	return "api.github.com"
+	if os.getenv('GIT_SERVICE') == 'gitlab': # gitlab
+		return "gitlab.com/api/v4"
 
-# download GitHub repo as local zip archive
+	if os.getenv('GIT_HOSTNAME') and os.getenv('GIT_HOSTNAME') != "github.com": # github enterprise
+		return f"{os.getenv('GIT_HOSTNAME')}/api/v3"
+	
+	return "api.github.com" # github cloud
+
+# download git repo as local zip archive
 def download_repo(dir, org_name, repo_name):
 	repo = f"{org_name}/{repo_name}"
-	git_url = f"https://{os.getenv('GITHUB_USERNAME')}:{os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')}@{os.getenv('GITHUB_HOSTNAME')}/{repo}.git"	
+	git_url = f"https://{os.getenv('GIT_USERNAME')}:{os.getenv('GIT_PERSONAL_ACCESS_TOKEN')}@{os.getenv('GIT_HOSTNAME')}/{repo}.git"	
 	repo_dir = f"{dir}/{org_name}--{repo_name}"
 
 	try:
@@ -32,40 +36,54 @@ def download_repo(dir, org_name, repo_name):
 		print(f"Error downloading repo {git_url}", e)
 		return False
 
-# iterate through all GitHub orgs and repos within them, download each repo and scan with Nightfall
+# iterate through all repos, download each repo and scan with Nightfall
 def download_all_repos(dir):
-	headers = {
-	    'Authorization': f"token {os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')}",
-	    'Accept': 'application/vnd.github.v3+json'
-	}
-
 	hostname = get_hostname()
-	orgs_endpoint = f"https://{hostname}/organizations"
-	if hostname == "api.github.com":
-		orgs_endpoint = f"https://{hostname}/user/memberships/orgs"
-
-	response = requests.get(orgs_endpoint, headers=headers)
-	orgs = json.loads(response.content)
-	
-	if hostname == "api.github.com":
-		orgs = [ org['organization'] for org in orgs ]
-	
 	try:
 		os.mkdir(dir)
 	except:
 		pass
 
-	for org in orgs:
-		print(f"Organization: {org['login']}")
-		response = requests.get(f"https://{hostname}/orgs/{org['login']}/repos", headers=headers)
-		repos = json.loads(response.content)
-		for i, repo in enumerate(repos):
-			# print(org, repo)
-			save_path = download_repo(dir, org['login'], repo['name'])
-			if save_path:
-				scan_repo(save_path, repo['html_url'], org['login'], repo['name'])
+	if os.getenv('GIT_SERVICE') == 'gitlab': # gitlab - iterate through all projects
+		headers = {
+		    'Authorization': f"Bearer {os.getenv('GIT_PERSONAL_ACCESS_TOKEN')}"
+		}
 
-# send zip archive of GitHub repo to Nightfall to be scanned
+		url = f"https://{hostname}/projects?membership=true"
+		response = requests.get(url, headers=headers)
+		projects = json.loads(response.content)
+
+		for project in projects:
+			save_path = download_repo(dir, project['namespace']['path'], project['path'])
+			if save_path:
+				scan_repo(save_path, project['web_url'], project['id'], project['path'])
+	
+	else: # github - iterate through all orgs and then all repos within them
+		headers = {
+		    'Authorization': f"token {os.getenv('GIT_PERSONAL_ACCESS_TOKEN')}",
+		    'Accept': 'application/vnd.github.v3+json'
+		}
+		
+		orgs_endpoint = f"https://{hostname}/organizations"
+		if hostname == "api.github.com":
+			orgs_endpoint = f"https://{hostname}/user/memberships/orgs"
+
+		response = requests.get(orgs_endpoint, headers=headers)
+		orgs = json.loads(response.content)
+		
+		if hostname == "api.github.com":
+			orgs = [ org['organization'] for org in orgs ]
+
+		for org in orgs:
+			print(f"Organization: {org['login']}")
+			response = requests.get(f"https://{hostname}/orgs/{org['login']}/repos", headers=headers)
+			repos = json.loads(response.content)
+			for i, repo in enumerate(repos):
+				save_path = download_repo(dir, org['login'], repo['name'])
+				if save_path:
+					scan_repo(save_path, repo['html_url'], org['login'], repo['name'])
+
+# send zip archive of git repo to Nightfall to be scanned
 def scan_repo(filepath, url, org, repo):
 	nightfall = Nightfall() # reads API key from NIGHTFALL_API_KEY environment variable by default
 	webhook_url = f"{os.getenv('NIGHTFALL_SERVER_URL')}/ingest"
