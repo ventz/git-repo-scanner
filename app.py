@@ -142,7 +142,7 @@ def output_results(data):
 		]
 		table.append(row)
 
-		with open(f"results.csv", 'a') as csvfile:
+		with open(outfile, 'a') as csvfile:
 			writer = csv.writer(csvfile)
 			writer.writerow(row)
 	return
