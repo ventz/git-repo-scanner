@@ -1,5 +1,5 @@
 import os
-from nightfall import Confidence, DetectionRule, Detector, RedactionConfig, MaskConfig, Nightfall
+from nightfall import Confidence, DetectionRule, Detector, RedactionConfig, MaskConfig, AlertConfig, WebhookAlert, Nightfall
 from os import walk
 import requests
 import json
@@ -96,7 +96,7 @@ def scan_repo(filepath, url, org, repo):
 		metadata = json.dumps(metadata)
 		# scan with Nightfall
 		scan_id, message = nightfall.scan_file(filepath, 
-			webhook_url=webhook_url,
+			alert_config=AlertConfig(url=WebhookAlert(webhook_url)),
 			detection_rule_uuids=detection_rule_uuids, 
 			request_metadata=metadata)
 		print("\t\t", scan_id, message)

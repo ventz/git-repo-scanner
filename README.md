@@ -19,7 +19,7 @@ The service is compatible with GitHub and GitLab instances that can be accessed 
 
 ## Usage
 
-1. Install dependencies.
+1. Install dependencies. Add the `-U` flag to ensure you're using the latest versions of these packages.
 
 ```bash
 pip install -r requirements.txt
