@@ -74,6 +74,14 @@ export GIT_PERSONAL_ACCESS_TOKEN=<your github personal access token>
 export GIT_HOSTNAME=<your github hostname>
 ```
 
+###### 5.c. If sending findings to an event collector, add:
+
+Optional. If you'd like to send each sensitive finding as JSON to an HTTP event collector, such as an endpoint configured in your SIEM like Sumo Logic or Splunk, set the `EVENT_COLLECTOR_URL` environment variable. If this variable is not set, findings will not be sent to an event collector. For example:
+
+```bash
+export EVENT_COLLECTOR_URL=https://endpoint1.collection.us1.sumologic.com/receiver/v1/http/...
+```
+
 6. Start your webhook server. This runs `app.py`.
 
 ```bash

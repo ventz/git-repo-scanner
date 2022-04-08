@@ -89,6 +89,12 @@ def get_commit(org, repo, commit_hash):
 		commit = json.loads(response.content)
 		return commit['commit']['author']
 
+# send finding as JSON to an event collector HTTP endpoint
+def send_to_event_collector(data):
+	if os.getenv('EVENT_COLLECTOR_URL'): 
+		resp = requests.post(os.getenv('EVENT_COLLECTOR_URL'), data=json.dumps(data))
+		print(f"\tSent to event collector with status code {resp.status_code}")
+
 # output findings to CSV
 def output_results(data):
 	findings_url = data['findingsURL']
@@ -121,28 +127,32 @@ def output_results(data):
 		filepath, permalink = get_permalink(url, finding)
 		commit_author = get_commit(org, repo, finding['location']['commitHash'])
 
-		row = [
-			data['uploadID'],
-			datetime.now(),
-			org,
-			repo,
-			filepath,
-			before_context, 
-			repr(finding['finding']),
-			after_context,
-			finding['detector']['name'],
-			finding['confidence'],
-			finding['location']['lineRange']['start'],
-			finding['location']['lineRange']['end'],
-			finding['matchedDetectionRuleUUIDs'],
-			finding['location']['commitHash'],
-			commit_author['date'],
-			commit_author['email'],
-			permalink
-		]
+		result = {
+			"upload_id": data['uploadID'], 
+			"datetime": str(datetime.now()),
+			"org": org, 
+			"repo": repo, 
+			"filepath": filepath, 
+			"before_context": before_context, 
+			"finding": repr(finding['finding']), 
+			"after_context": after_context, 
+			"detector": finding['detector']['name'], 
+			"confidence": finding['confidence'], 
+			"line_start": finding['location']['lineRange']['start'], 
+			"line_end": finding['location']['lineRange']['end'], 
+			"detection_rules": finding['matchedDetectionRuleUUIDs'], 
+			"commit_hash": finding['location']['commitHash'], 
+			"commit_date": commit_author['date'], 
+			"author_email": commit_author['email'], 
+			"permalink": permalink
+		}
+
+		row = list(result.values())
 		table.append(row)
 
 		with open(outfile, 'a') as csvfile:
 			writer = csv.writer(csvfile)
 			writer.writerow(row)
+
+		send_to_event_collector(result)
 	return
