@@ -5,6 +5,7 @@ import requests
 import json
 from git import Repo
 import shutil
+import time
 
 # get hostname for API calls to GitHub cloud, GitHub enterprise, or GitLab
 def get_hostname():
@@ -100,6 +101,7 @@ def scan_repo(filepath, url, org, repo):
 			detection_rule_uuids=detection_rule_uuids, 
 			request_metadata=metadata)
 		print("\t\t", scan_id, message)
+		time.sleep(30)
 	except Exception as err:
 		print(err)
 
