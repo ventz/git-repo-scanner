@@ -63,6 +63,9 @@ export GIT_SERVICE=github
 export GIT_USERNAME=<your username>
 export GIT_PERSONAL_ACCESS_TOKEN=<your github personal access token>
 export GIT_HOSTNAME=<your github hostname>
+
+# Optionally, you can exclude a list of orgs whose contents you don't want to scan.
+export GIT_EXCLUDE_ORGS=<one org>,<another org>
 ```
 
 ###### 5.b. If GitLab, add:
