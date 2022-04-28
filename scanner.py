@@ -17,6 +17,12 @@ def get_hostname():
 	
 	return "api.github.com" # github cloud
 
+def get_exclude_orgs():
+	flag_value = str(os.getenv('GIT_EXCLUDE_ORGS'))
+	if len(flag_value) == 0:
+		return set()
+	return set(flag_value.split(','))
+
 # download git repo as local zip archive
 def download_repo(dir, org_name, repo_name):
 	repo = f"{org_name}/{repo_name}"
@@ -75,7 +81,11 @@ def download_all_repos(dir):
 		if hostname == "api.github.com":
 			orgs = [ org['organization'] for org in orgs ]
 
+		excluded_orgs = get_exclude_orgs()
 		for org in orgs:
+			if org in excluded_orgs:
+				continue
+
 			print(f"Organization: {org['login']}")
 			response = requests.get(f"https://{hostname}/orgs/{org['login']}/repos", headers=headers)
 			repos = json.loads(response.content)
@@ -101,7 +111,7 @@ def scan_repo(filepath, url, org, repo):
 			detection_rule_uuids=detection_rule_uuids, 
 			request_metadata=metadata)
 		print("\t\t", scan_id, message)
-		time.sleep(30)
+		time.sleep(300)
 	except Exception as err:
 		print(err)
 
